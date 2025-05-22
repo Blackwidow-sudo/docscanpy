@@ -1,7 +1,10 @@
 import gradio as gr
 import numpy as np
+import os
 
 from scanner.scan import Scanner
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
 
 
 def on_img_change(image: np.ndarray):
@@ -9,8 +12,13 @@ def on_img_change(image: np.ndarray):
 
 
 def on_img_clear():
-    return None, None, None, gr.Checkbox(value=False, interactive=False)
-
+    return [
+        None,
+        None,
+        None,
+        gr.Checkbox(value=False, interactive=False),
+        gr.DownloadButton(value=None, interactive=False)
+    ]
 
 def find_contours(image: np.ndarray):
     if image is None:
@@ -19,16 +27,24 @@ def find_contours(image: np.ndarray):
     if pts is None:
         return image, None, image, gr.Checkbox(interactive=False)
     transformed = Scanner.transform_perspective(image, pts)
-    cpy = image.copy()
-    preview = Scanner.draw_contour(cpy, pts)
-    return preview, transformed, image, gr.Checkbox(interactive=True)
+    preview = Scanner.draw_contour(image.copy(), pts)
+    document = Scanner.to_pdf(transformed, os.path.join(UPLOAD_DIR, 'document.pdf'))
+    return [
+        preview,
+        transformed,
+        image,
+        gr.Checkbox(interactive=True),
+        gr.DownloadButton(value=document, interactive=True)
+    ]
 
 
 def apply_filter(checkbox: bool, image: np.ndarray):
-    preview, transformed, _, _ = find_contours(image)
+    preview, transformed, _, _, document = find_contours(image)
     if checkbox and transformed is not None:
-        return preview, Scanner.document_filter(transformed)
-    return preview, transformed
+        filtered = Scanner.document_filter(transformed)
+        document = Scanner.to_pdf(filtered, os.path.join(UPLOAD_DIR, 'document.pdf'))
+        return preview, filtered, gr.DownloadButton(value=document)
+    return preview, transformed, document
 
 
 with gr.Blocks() as demo:
@@ -50,6 +66,7 @@ with gr.Blocks() as demo:
                 label='Apply black/white filter',
                 interactive=False
             )
+            download_btn = gr.DownloadButton('Download', interactive=False)
 
     input_img.change(
         fn=on_img_change,
@@ -59,19 +76,19 @@ with gr.Blocks() as demo:
 
     input_img.clear(
         fn=on_img_clear,
-        outputs=[input_img, output_img, orig_img, filter_chkbx]
+        outputs=[input_img, output_img, orig_img, filter_chkbx, download_btn]
     )
 
     scan_btn.click(
         fn=find_contours,
         inputs=input_img,
-        outputs=[input_img, output_img, orig_img, filter_chkbx]
+        outputs=[input_img, output_img, orig_img, filter_chkbx, download_btn]
     )
 
     filter_chkbx.change(
         fn=apply_filter,
         inputs=[filter_chkbx, orig_img],
-        outputs=[input_img, output_img]
+        outputs=[input_img, output_img, download_btn]
     )
 
 if __name__ == "__main__":

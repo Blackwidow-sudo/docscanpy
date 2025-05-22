@@ -1,5 +1,7 @@
 import cv2
 import numpy as np
+from io import BytesIO
+from PIL import Image
 
 
 class Scanner:
@@ -75,3 +77,15 @@ class Scanner:
             11,
             2
         )
+    
+    @staticmethod
+    def to_pdf(img: np.ndarray, path: str) -> str:
+        if len(img.shape) == 2:  # Grayscale
+            pil_img = Image.fromarray(img)
+        else:
+            pil_img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        # Convert to RGB if not already
+        if pil_img.mode != "RGB":
+            pil_img = pil_img.convert("RGB")
+        pil_img.save(path, format="PDF")
+        return path
