@@ -8,7 +8,7 @@ def on_img_change(image: np.ndarray):
     return gr.Button(interactive=True if image is not None else False)
 
 
-def on_img_clear(image: np.ndarray, orig_img: np.ndarray):
+def on_img_clear():
     return None, None, None, gr.Checkbox(value=False, interactive=False)
 
 
